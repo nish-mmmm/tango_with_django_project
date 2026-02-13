@@ -10,24 +10,27 @@ from rango.forms import UserForm,UserProfileForm
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
+from datetime import datetime
 
 def index(request):
+    visitor_cookie_handler(request)
     category_list = Category.objects.order_by('-likes')[:5]
     page_list = Page.objects.order_by('-views')[:5]
-
-    context_dict = {
-        'categories': category_list,
-        'pages': page_list,
-    }
-
+    context_dict = {}
     context_dict['boldmessage'] = 'Crunchy, creamy, cookie, candy, cupcake!'
+    context_dict['categories'] = category_list
+    context_dict['pages'] = page_list
+
+    
 
     return render(request, 'rango/index.html', context=context_dict)
 
 def about(request):
-    print(request.method)
-    print(request.user)
-    return render(request, 'rango/about.html', {})
+    visitor_cookie_handler(request)  # increments visits
+    visits = request.session.get('visits', 1)
+    context_dict = {'visits': visits}
+    visitor_cookie_handler(request)
+    return render(request, 'rango/about.html', context=context_dict)
 
 
 
@@ -179,6 +182,29 @@ def user_logout(request):
     return redirect(reverse('rango:index'))
 
 
+def get_server_side_cookie(request, cookie, default_val=None):
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
+# Updated the function definition
 
+def visitor_cookie_handler(request):
+    # Get the number of visits; default to 1 if not set
+    visits = request.session.get('visits', 1)
+
+    # Get the last visit time; default to now if not set
+    last_visit_str = request.session.get('last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_str[:19], '%Y-%m-%d %H:%M:%S')
+
+    # Increment visits if more than a day has passed
+    if (datetime.now() - last_visit_time).days > 0:
+        visits += 1
+        request.session['last_visit'] = str(datetime.now())
+    else:
+        request.session['last_visit'] = last_visit_str
+
+    # Save visits back to the session
+    request.session['visits'] = visits
 
 
